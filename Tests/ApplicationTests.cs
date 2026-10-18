@@ -1,5 +1,6 @@
 using Core.Application;
 using Core.Domain;
+using Core.Rules;
 using Data;
 
 namespace Tests;
@@ -7,20 +8,37 @@ namespace Tests;
 public sealed class ApplicationTests
 {
     [Fact]
-    public void Stale_ingest_does_not_replace_current_identity()
+    public void Stale_ingest_creates_no_new_findings()
     {
-        var handler = new IdentityIngestHandler(new InMemoryIdentityStore(), []);
+        var store = new InMemoryIdentityStore();
+        var handler = new IdentityIngestHandler(store, [new MissingOwnerRule()]);
 
-        handler.Handle("tenant-a", Event(2));
-        handler.Handle("tenant-a", Event(1));
+        handler.Handle("tenant-a", Event(2, owner: null));
+        handler.Handle("tenant-a", Event(1, owner: "owner"));
 
-        Assert.Fail("The ingest handler skeleton does not expose its resulting identity yet.");
+        var findings = store.GetFindings("tenant-a");
+        Assert.Single(findings);
+        Assert.Equal("missing-owner", findings[0].RuleId);
     }
 
-    private static IngestEvent Event(long version) =>
+    [Fact]
+    public void Repeated_ingest_leaves_a_single_finding()
+    {
+        var store = new InMemoryIdentityStore();
+        var handler = new IdentityIngestHandler(store, [new MissingOwnerRule()]);
+
+        handler.Handle("tenant-a", Event(1, owner: null));
+        handler.Handle("tenant-a", Event(1, owner: null));
+
+        var findings = store.GetFindings("tenant-a");
+        Assert.Single(findings);
+        Assert.Equal("tenant-a", findings[0].TenantId);
+    }
+
+    private static IngestEvent Event(long version, string? owner) =>
         new(
             "identity-1",
             IngestOperation.Upsert,
             version,
-            new Identity("identity-1", "owner", [], version, false));
+            new Identity("identity-1", owner, [], version, false));
 }

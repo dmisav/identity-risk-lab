@@ -8,5 +8,5 @@ public interface IRule
 
     int RuleVersion { get; }
 
-    Finding? Evaluate(string tenantId, Identity identity);
+    IReadOnlyList<Finding> Evaluate(Identity identity);
 }

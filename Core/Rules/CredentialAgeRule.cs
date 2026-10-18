@@ -9,8 +9,26 @@ public sealed class CredentialAgeRule : IRule
 
     public int RuleVersion => 1;
 
-    public Finding? Evaluate(string tenantId, Identity identity)
+    public IReadOnlyList<Finding> Evaluate(Identity identity)
     {
-        throw new NotImplementedException();
+        ArgumentNullException.ThrowIfNull(identity);
+
+        if (identity.IsDeleted)
+        {
+            return [];
+        }
+
+        var threshold = DateTimeOffset.UtcNow.AddDays(-90);
+        return identity.Credentials
+            .Where(credential => credential.CreatedAt < threshold)
+            .Select(credential => new Finding(
+                null,
+                identity.Id,
+                RuleId,
+                RuleVersion,
+                credential.Id,
+                FindingSeverity.Medium,
+                "Credential is older than 90 days."))
+            .ToArray();
     }
 }

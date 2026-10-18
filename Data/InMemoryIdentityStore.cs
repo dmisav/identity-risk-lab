@@ -7,7 +7,9 @@ public sealed class InMemoryIdentityStore : IIdentityStore
 {
     private readonly object sync = new();
     private readonly Dictionary<(string TenantId, string IdentityId), Identity> identities = new();
-    private readonly Dictionary<string, List<Finding>> findings = new();
+    private readonly Dictionary<
+        string,
+        Dictionary<(string IdentityId, string RuleId, string? CredentialId), Finding>> findings = new();
 
     public UpsertResult Apply(string tenantId, IngestEvent ingestEvent)
     {
@@ -57,7 +59,7 @@ public sealed class InMemoryIdentityStore : IIdentityStore
         lock (sync)
         {
             return findings.TryGetValue(tenantId, out var tenantFindings)
-                ? tenantFindings.ToArray()
+                ? tenantFindings.Values.ToArray()
                 : [];
         }
     }
@@ -75,12 +77,21 @@ public sealed class InMemoryIdentityStore : IIdentityStore
         {
             if (!this.findings.TryGetValue(tenantId, out var tenantFindings))
             {
-                tenantFindings = [];
+                tenantFindings = new();
                 this.findings[tenantId] = tenantFindings;
             }
 
-            tenantFindings.RemoveAll(finding => finding.IdentityId == identityId);
-            tenantFindings.AddRange(findings);
+            foreach (var key in tenantFindings.Keys
+                         .Where(key => key.IdentityId == identityId)
+                         .ToArray())
+            {
+                tenantFindings.Remove(key);
+            }
+
+            foreach (var finding in findings)
+            {
+                tenantFindings[(finding.IdentityId, finding.RuleId, finding.CredentialId)] = finding;
+            }
         }
     }
 }
