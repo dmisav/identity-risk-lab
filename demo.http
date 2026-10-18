@@ -1,0 +1,78 @@
+@baseUrl = http://localhost:5111
+
+### Tenant A
+# Proves tenant-a can ingest an identity and generate a finding.
+POST {{baseUrl}}/ingest
+X-Api-Key: key-a
+Content-Type: application/json
+
+{
+  "batchId": "tenant-a-initial",
+  "events": [
+    {
+      "identityId": "service-account-a",
+      "op": "upsert",
+      "version": 3,
+      "data": {
+        "owner": null,
+        "credentials": []
+      }
+    }
+  ]
+}
+
+### Tenant B
+# Proves tenant-b can ingest a separate identity with the same service boundary.
+POST {{baseUrl}}/ingest
+X-Api-Key: key-b
+Content-Type: application/json
+
+{
+  "batchId": "tenant-b-initial",
+  "events": [
+    {
+      "identityId": "service-account-b",
+      "op": "upsert",
+      "version": 1,
+      "data": {
+        "owner": null,
+        "credentials": []
+      }
+    }
+  ]
+}
+
+### Tenant A findings
+# Proves tenant-a sees its own findings after ingestion.
+GET {{baseUrl}}/findings
+X-Api-Key: key-a
+
+### Stale update
+# Proves an older version of an existing identity is reported as ignored_stale.
+POST {{baseUrl}}/ingest
+X-Api-Key: key-a
+Content-Type: application/json
+
+{
+  "batchId": "tenant-a-stale",
+  "events": [
+    {
+      "identityId": "service-account-a",
+      "op": "upsert",
+      "version": 1,
+      "data": {
+        "owner": "late-owner",
+        "credentials": []
+      }
+    }
+  ]
+}
+
+### Tenant B findings
+# Proves tenant-b sees only its own findings and not tenant-a data.
+GET {{baseUrl}}/findings
+X-Api-Key: key-b
+
+### Missing authentication
+# Proves requests without an API key receive 401 Unauthorized.
+GET {{baseUrl}}/findings

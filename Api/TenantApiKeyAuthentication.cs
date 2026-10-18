@@ -2,13 +2,17 @@ namespace Api;
 
 public sealed class TenantApiKeyAuthentication
 {
+    private readonly IReadOnlyDictionary<string, string> apiKeys;
+
     public TenantApiKeyAuthentication(IReadOnlyDictionary<string, string> apiKeys)
     {
-        throw new NotImplementedException();
+        this.apiKeys = apiKeys ?? throw new ArgumentNullException(nameof(apiKeys));
     }
 
     public string? ResolveTenant(string? apiKey)
     {
-        throw new NotImplementedException();
+        return apiKey is not null && apiKeys.TryGetValue(apiKey, out var tenantId)
+            ? tenantId
+            : null;
     }
 }
