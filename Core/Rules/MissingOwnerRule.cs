@@ -9,8 +9,22 @@ public sealed class MissingOwnerRule : IRule
 
     public int RuleVersion => 1;
 
-    public Finding? Evaluate(string tenantId, Identity identity)
+    public IReadOnlyList<Finding> Evaluate(Identity identity)
     {
-        throw new NotImplementedException();
+        ArgumentNullException.ThrowIfNull(identity);
+
+        return identity.IsDeleted || !string.IsNullOrWhiteSpace(identity.Owner)
+            ? []
+            :
+            [
+                new Finding(
+                    null,
+                    identity.Id,
+                    RuleId,
+                    RuleVersion,
+                    null,
+                    FindingSeverity.Medium,
+                    "Identity has no owner.")
+            ];
     }
 }

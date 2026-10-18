@@ -9,8 +9,29 @@ public sealed class ExpiredCredentialRule : IRule
 
     public int RuleVersion => 1;
 
-    public Finding? Evaluate(string tenantId, Identity identity)
+    public IReadOnlyList<Finding> Evaluate(Identity identity)
     {
-        throw new NotImplementedException();
+        ArgumentNullException.ThrowIfNull(identity);
+
+        if (identity.IsDeleted)
+        {
+            return [];
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        return identity.Credentials
+            .Where(credential =>
+                credential.IsActive &&
+                credential.ExpiresAt is not null &&
+                credential.ExpiresAt < now)
+            .Select(credential => new Finding(
+                null,
+                identity.Id,
+                RuleId,
+                RuleVersion,
+                credential.Id,
+                FindingSeverity.High,
+                "Active credential has expired."))
+            .ToArray();
     }
 }
